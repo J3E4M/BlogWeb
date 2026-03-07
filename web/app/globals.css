@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  /* Medium clone design variables */
+  --color-bg: #ffffff;
+  --color-border: #e6e6e6;
+  --color-primary: #1a8917;
+  --color-text-1: #242424;
+  --color-text-2: #6b6b6b;
+  --color-text-3: #b3b3b3;
+  --color-surface: #f9f9f9;
+  --color-like: #e91e63;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-bg: var(--color-bg);
+  --color-border: var(--color-border);
+  --color-primary: var(--color-primary);
+  --color-text-1: var(--color-text-1);
+  --color-text-2: var(--color-text-2);
+  --color-text-3: var(--color-text-3);
+  --color-surface: var(--color-surface);
+  --color-like: var(--color-like);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-source-serif);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text-1);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.font-logo {
+  font-family: var(--font-source-serif), Georgia, serif;
+}

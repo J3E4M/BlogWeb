@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Status {
+  id                Int               @id
+  name              String
+  users             User[]
+  articles          Article[]
+  likes             ArticleLike[]
+  categories        Category[]
+  articleCategories ArticleCategory[]
+
+  @@map("status")
+}
+
+model User {
+  id        String        @id @default(cuid())
+  email     String        @unique
+  username  String        @unique
+  password  String
+  name      String
+  bio       String?       @db.Text
+  statusId  Int           @default(1) @map("status_id")
+  status    Status        @relation(fields: [statusId], references: [id])
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+  articles  Article[]
+  likes     ArticleLike[]
+
+  @@map("user")
+  
+  
+  
+}
+
+model Category {
+  id        Int           @id
+  name      String        @unique
+  statusId  Int           @default(1) @map("status_id")
+  status    Status        @relation(fields: [statusId], references: [id])
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+  articles  ArticleCategory[]
+
+  @@map("category")
+}
+
+model Article {
+  id        String        @id @default(cuid())
+  title     String
+  content   String
+  authorId  String        @map("user_id")
+  author    User          @relation(fields: [authorId], references: [id])
+  statusId  Int           @default(1) @map("status_id")
+  status    Status        @relation(fields: [statusId], references: [id])
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+  likes     ArticleLike[]
+  categories ArticleCategory[]
+
+  @@map("article")
+}
+
+model ArticleCategory {
+  id         Int      @id
+  articleId  String   @map("article_id")
+  article    Article  @relation(fields: [articleId], references: [id])
+  categoryId Int      @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id])
+  statusId   Int      @default(1) @map("status_id")
+  status     Status   @relation(fields: [statusId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("article_category")
+}
+
+model ArticleLike {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  articleId String   @map("article_id")
+  article   Article  @relation(fields: [articleId], references: [id])
+  statusId  Int      @default(1) @map("status_id")
+  status    Status   @relation(fields: [statusId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([userId, articleId])
+  @@map("article_like")
+}

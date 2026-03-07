@@ -1,0 +1,91 @@
+// ============================================
+// Medium Clone — Database Schema (DBML)
+// ============================================
+
+// สถานะ (Active / Inactive / Deleted)
+Table status {
+  id integer [primary key, not null, note: "รหัสสถานะ (PK) — 1=Active, 2=Inactive, 3=Deleted"]
+  name varchar [not null, note: "ชื่อสถานะ"]
+}
+
+// ผู้ใช้
+Table user {
+  id varchar [primary key, not null, note: "รหัสผู้ใช้ (PK, CUID)"]
+  email varchar [not null, unique, note: "อีเมล (unique)"]
+  username varchar [not null, unique, note: "ชื่อผู้ใช้สำหรับระบบ (unique)"]
+  password varchar [not null, note: "รหัสผ่าน (hash)"]
+  name varchar [not null, note: "ชื่อผู้ใช้"]
+  status_id integer [not null, default: 1, ref: > status.id, note: "สถานะ (FK -> status.id)"]
+  created_at timestamp [not null, note: "วันที่สร้างข้อมูล"]
+  updated_at timestamp [not null, note: "วันที่แก้ไขล่าสุด"]
+
+  Indexes {
+    email [unique]
+    username [unique]
+    status_id
+  }
+}
+
+// บทความ
+Table article {
+  id varchar [primary key, not null, note: "รหัสบทความ (PK, CUID)"]
+  title varchar [not null, note: "หัวข้อบทความ"]
+  content text [not null, note: "เนื้อหาบทความ (HTML จาก Rich Text Editor)"]
+  user_id varchar [not null, ref: > user.id, note: "รหัสผู้เขียน (FK -> user.id, CASCADE on delete)"]
+  status_id integer [not null, default: 1, ref: > status.id, note: "สถานะ (FK -> status.id)"]
+  created_at timestamp [not null, note: "วันที่สร้างข้อมูล"]
+  updated_at timestamp [not null, note: "วันที่แก้ไขล่าสุด"]
+
+  Indexes {
+    user_id
+    status_id
+    (user_id, created_at) [note: "สำหรับดึงบทความของ user เรียงตามวันที่"]
+  }
+}
+
+// =========================
+// หมวดหมู่ (Category)
+// =========================
+Table category {
+  id integer [primary key, not null, note: "รหัสหมวดหมู่ (PK, AUTO_INCREMENT)"]
+  name varchar [not null, unique, note: "ชื่อหมวดหมู่ (unique)"]
+  status_id integer [not null, default: 1, ref: > status.id, note: "สถานะ (FK -> status.id)"]
+  created_at timestamp [not null, note: "วันที่สร้างข้อมูล"]
+  updated_at timestamp [not null, note: "วันที่แก้ไขล่าสุด"]
+
+  Indexes {
+    name [unique]
+    status_id
+  }
+}
+
+// บทความหนึ่งอยู่ได้หลายหมวด, หมวดหนึ่งมีหลายบทความ
+Table article_category {
+  id integer [primary key, not null, note: "รหัส (PK, AUTO_INCREMENT)"]
+  article_id varchar [not null, ref: > article.id, note: "รหัสบทความ (FK -> article.id, CASCADE on delete)"]
+  category_id integer [not null, ref: > category.id, note: "รหัสหมวดหมู่ (FK -> category.id)"]
+  created_at timestamp [not null, note: "วันที่สร้างความสัมพันธ์"]
+  updated_at timestamp [not null, note: "วันที่แก้ไขล่าสุด"]
+
+  Indexes {
+    (article_id, category_id) [unique, note: "หนึ่งบทความ-หนึ่งหมวดหมู่ มีได้ครั้งเดียว"]
+    article_id
+    category_id
+  }
+}
+
+
+// Like บทความ (หนึ่ง user like หนึ่งบทความได้ครั้งเดียว)
+Table article_like {
+  id varchar [primary key, not null, note: "รหัส (PK, CUID)"]
+  user_id varchar [not null, ref: > user.id, note: "ผู้ใช้ (FK -> user.id)"]
+  article_id varchar [not null, ref: > article.id, note: "บทความ (FK -> article.id)"]
+  status_id integer [not null, default: 1, ref: > status.id, note: "สถานะ (FK -> status.id)"]
+  created_at timestamp [not null, note: "วันที่ like"]
+  updated_at timestamp [not null, note: "วันที่แก้ไขล่าสุด"]
+
+  Indexes {
+    (user_id, article_id) [unique, note: "หนึ่ง user like หนึ่งบทความได้ครั้งเดียว"]
+    article_id
+  }
+}
