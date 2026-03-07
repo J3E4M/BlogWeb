@@ -15,6 +15,7 @@ type ArticleItem = {
   publishedAt: string;
   readTimeMinutes: number;
   likeCount?: number;
+  statusId: number;
 };
 
 type ApiResponse = {
@@ -25,14 +26,23 @@ type ApiResponse = {
 export default function HomePage() {
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [pagination, setPagination] = useState<ApiResponse["pagination"] | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchArticles() {
+    async function fetchData() {
       try {
         setLoading(true);
         setError(null);
+
+        // Fetch current user session
+        const sessionRes = await axios.get("/api/profile").catch(() => null);
+        if (sessionRes?.data?.user) {
+          setCurrentUserId(sessionRes.data.user.id);
+        }
+
+        // Fetch articles
         const { data } = await axios.get<ApiResponse>("/api/articles", { params: { page: 1, limit: PAGE_SIZE } });
         setArticles(data.items);
         setPagination(data.pagination);
@@ -43,7 +53,7 @@ export default function HomePage() {
         setLoading(false);
       }
     }
-    fetchArticles();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -82,10 +92,13 @@ export default function HomePage() {
                 title={article.title}
                 excerpt={article.excerpt}
                 authorName={article.author.name}
+                authorId={article.author.id}
+                currentUserId={currentUserId}
                 publishedAt={new Date(article.publishedAt)}
                 readTimeMinutes={article.readTimeMinutes}
                 likeCount={article.likeCount ?? 0}
-                isLoggedIn={false}
+                isLoggedIn={!!currentUserId}
+                statusId={article.statusId}
               />
             ))
           )}
