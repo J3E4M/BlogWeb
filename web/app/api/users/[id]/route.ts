@@ -20,11 +20,6 @@ function formatCount(count: number): string {
     return String(count);
 }
 
-// Check if the identifier looks like a UUID
-function isUUID(str: string): boolean {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(str);
-}
 
 export async function GET(
     request: NextRequest,
@@ -35,37 +30,23 @@ export async function GET(
         const session = await getSession();
         const currentUserId = session?.userId;
 
-        let user;
-
-        if (isUUID(identifier)) {
-            // Search by user ID
-            user = await prisma.user.findUnique({
-                where: { id: identifier, statusId: 1 },
-                select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                    bio: true,
-                },
-            });
-        } else {
-            // Search by username (case-insensitive)
-            user = await prisma.user.findFirst({
-                where: {
-                    username: {
-                        equals: identifier,
-                        mode: "insensitive",
-                    },
-                    statusId: 1,
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                    bio: true,
-                },
-            });
-        }
+        // Find user by ID or Username
+        const user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { id: identifier },
+                    { username: { equals: identifier, mode: "insensitive" } },
+                    { email: { equals: identifier, mode: "insensitive" } }
+                ],
+                statusId: 1
+            },
+            select: {
+                id: true,
+                name: true,
+                username: true,
+                bio: true,
+            },
+        });
 
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
