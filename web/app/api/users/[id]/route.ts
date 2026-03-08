@@ -20,43 +20,68 @@ function formatCount(count: number): string {
     return String(count);
 }
 
+// Check if the identifier looks like a UUID
+function isUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+}
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = await params;
+        const { id: identifier } = await params;
         const session = await getSession();
         const currentUserId = session?.userId;
 
-        const user = await prisma.user.findUnique({
-            where: { id, statusId: 1 },
-            select: {
-                id: true,
-                name: true,
-                username: true,
-                bio: true,
-            },
-        });
+        let user;
+
+        if (isUUID(identifier)) {
+            // Search by user ID
+            user = await prisma.user.findUnique({
+                where: { id: identifier, statusId: 1 },
+                select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                    bio: true,
+                },
+            });
+        } else {
+            // Search by username (case-insensitive)
+            user = await prisma.user.findFirst({
+                where: {
+                    username: {
+                        equals: identifier,
+                        mode: "insensitive",
+                    },
+                    statusId: 1,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                    bio: true,
+                },
+            });
+        }
 
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
         // NOTE: Follow feature is not implemented yet
-        // Using placeholder values for followers/following
         const followersCount = 0;
         const followingCount = 0;
         const isFollowing = false;
 
         // Fetch user's articles
-        // Show all published articles (statusId: 1) to everyone
-        // Show drafts (statusId: 2) only to the owner
         const articlesWhere = {
-            authorId: id,
+            authorId: user.id,
             OR: [
                 { statusId: 1 },
-                ...(currentUserId === id ? [{ statusId: 2 }] : []),
+                ...(currentUserId === user.id ? [{ statusId: 2 }] : []),
             ],
         };
 
@@ -93,7 +118,7 @@ export async function GET(
                 followingCount: formatCount(followingCount),
                 followingCountRaw: followingCount,
                 isFollowing,
-                isOwnProfile: currentUserId === id,
+                isOwnProfile: currentUserId === user.id,
             },
             articles: articlesData,
         });

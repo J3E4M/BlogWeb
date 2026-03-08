@@ -1,7 +1,7 @@
 "use client";
 
-import { Pencil } from "lucide-react";
-import Link from "next/dist/client/link";
+import Link from "next/link";
+import { Pencil, UserPlus } from "lucide-react";
 
 function getInitials(name: string): string {
     const parts = name.trim().split(/\s+/);
@@ -16,6 +16,8 @@ type ProfileHeaderProps = {
     bio: string;
     followersCount: string;
     followingCount: string;
+    isOwnProfile?: boolean;
+    username?: string | null;
 };
 
 export default function ProfileHeader({
@@ -23,6 +25,8 @@ export default function ProfileHeader({
     bio,
     followersCount,
     followingCount,
+    isOwnProfile = false,
+    username,
 }: ProfileHeaderProps) {
     return (
         <div className="flex flex-col gap-4">
@@ -37,18 +41,31 @@ export default function ProfileHeader({
                     <h1 className="font-logo text-3xl sm:text-[32px] font-bold text-text-1">
                         {name}
                     </h1>
-                    <p className="text-base text-text-2 max-w-[728px]">{bio}</p>
+                    {username && (
+                        <p className="text-sm text-text-3">@{username}</p>
+                    )}
+                    <p className="text-base text-text-2 max-w-[728px]">{bio || "No bio yet."}</p>
                     <div className="flex items-center gap-6 text-sm text-text-1">
                         <span>{followersCount} Followers</span>
                         <span>{followingCount} Following</span>
                     </div>
-                    <Link
-                        href="/profile/edit"
-                        className="self-start rounded-full border border-border bg-white px-4 py-2 text-sm font-normal text-text-1 hover:bg-surface transition-colors flex items-center gap-2"
+                    {isOwnProfile ? (
+                        <Link
+                            href="/profile/edit"
+                            className="self-start rounded-full border border-border bg-white px-4 py-2 text-sm font-normal text-text-1 hover:bg-surface transition-colors flex items-center gap-2"
                         >
-                        <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                        Edit profile
-                    </Link>
+                            <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
+                            Edit profile
+                        </Link>
+                    ) : (
+                        <button
+                            type="button"
+                            className="self-start rounded-full border border-primary text-primary px-4 py-2 text-sm font-medium hover:bg-primary/5 transition-colors flex items-center gap-2"
+                        >
+                            <UserPlus className="w-3.5 h-3.5" strokeWidth={2} />
+                            Follow
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
