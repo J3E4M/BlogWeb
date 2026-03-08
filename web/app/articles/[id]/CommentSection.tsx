@@ -1,30 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, MessageCircle } from "lucide-react";
 
 type Comment = {
   id: string;
-  authorName: string;
-  timeAgo: string;
   content: string;
+  authorName: string;
+  authorId: string;
+  createdAt: string;
 };
 
-const INITIAL_COMMENTS: Comment[] = [
-  {
-    id: "1",
-    authorName: "John Doe",
-    timeAgo: "2 hours ago",
-    content:
-      "Great article! The point about co-creating systems is particularly insightful.",
-  },
-  {
-    id: "2",
-    authorName: "Alex Kim",
-    timeAgo: "5 hours ago",
-    content:
-      "Totally agree. The Alan Kay quote really captures the essence of invisible design.",
-  },
-];
+type CommentSectionProps = {
+  articleId: string;
+  isAuthenticated: boolean;
+};
 
 function getInitials(name: string): string {
   return name
@@ -35,71 +25,176 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-export function CommentSection() {
-  const [comments, setComments] = useState<Comment[]>(INITIAL_COMMENTS);
-  const [text, setText] = useState("");
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  function handleRespond() {
+  if (diffInSeconds < 60) return "Just now";
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) {
+    return `${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths} month${diffInMonths === 1 ? "" : "s"} ago`;
+  }
+
+  const diffInYears = Math.floor(diffInMonths / 12);
+  return `${diffInYears} year${diffInYears === 1 ? "" : "s"} ago`;
+}
+
+export function CommentSection({ articleId, isAuthenticated }: CommentSectionProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [text, setText] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchComments = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/articles/${articleId}/comments`);
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to fetch comments");
+      }
+
+      const data = await response.json();
+      setComments(data.comments || []);
+    } catch (err) {
+      console.error("Failed to fetch comments:", err);
+      setError(err instanceof Error ? err.message : "Failed to load comments");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [articleId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  async function handleRespond() {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    setComments((prev) => [
-      ...prev,
-      {
-        id: `comment-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        authorName: "You",
-        timeAgo: "Just now",
-        content: trimmed,
-      },
-    ]);
-    setText("");
+    if (!isAuthenticated) {
+      window.location.href = `/login?redirect=/articles/${articleId}`;
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/articles/${articleId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: trimmed }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to post comment");
+      }
+
+      const data = await response.json();
+      setComments((prev) => [data.comment, ...prev]);
+      setText("");
+    } catch (err) {
+      console.error("Failed to post comment:", err);
+      setError(err instanceof Error ? err.message : "Failed to post comment");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <section className="pt-8 flex flex-col gap-6">
       <div className="h-px bg-border" />
-      <h2 className="font-logo text-2xl font-bold text-text-1">Comments</h2>
 
-      {/* Input area */}
+      <div className="flex items-center gap-2">
+        <MessageCircle className="w-5 h-5 text-text-2" />
+        <h2 className="font-logo text-2xl font-bold text-text-1">
+          Comments ({comments.length})
+        </h2>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded" role="alert">
+          {error}
+        </p>
+      )}
+
       <div className="flex flex-col gap-2">
         <textarea
-          placeholder="Write a comment..."
+          placeholder={isAuthenticated ? "Write a comment..." : "Sign in to comment..."}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="w-full rounded-lg bg-surface border border-border p-4 min-h-[106px] text-[15px] text-text-1 placeholder:text-text-3 resize-y focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          disabled={isSubmitting || !isAuthenticated}
+          className="w-full rounded-lg bg-surface border border-border p-4 min-h-[106px] text-[15px] text-text-1 placeholder:text-text-3 resize-y focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
           rows={3}
         />
         <div className="flex justify-end">
           <button
             type="button"
             onClick={handleRespond}
-            disabled={!text.trim()}
-            className="rounded-lg bg-primary px-5 py-2.5 font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!text.trim() || isSubmitting || !isAuthenticated}
+            className="rounded-lg bg-primary px-5 py-2.5 font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Respond
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Posting...
+              </>
+            ) : (
+              "Respond"
+            )}
           </button>
         </div>
       </div>
 
-      {/* Comment list */}
-      <div className="flex flex-col divide-y divide-border">
-        {comments.map((c) => (
-          <div key={c.id} className="flex gap-4 py-4">
-            <div
-              className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold text-white ${
-                c.authorName === "You" || c.id === "1" ? "bg-primary" : "bg-text-2"
-              }`}
-            >
-              {getInitials(c.authorName)}
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-text-3" />
+        </div>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-text-3 text-[15px]">No comments yet. Be the first to share your thoughts!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col divide-y divide-border">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex gap-4 py-4">
+              <div className="h-10 w-10 shrink-0 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-white">
+                {getInitials(comment.authorName)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="font-semibold text-sm text-text-1">{comment.authorName}</div>
+                  <div className="text-xs text-text-3">{formatTimeAgo(comment.createdAt)}</div>
+                </div>
+                <p className="text-[15px] leading-normal text-text-1 mt-1 whitespace-pre-wrap">{comment.content}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-text-1">{c.authorName}</div>
-              <div className="text-xs text-text-3">{c.timeAgo}</div>
-              <p className="text-[15px] leading-normal text-text-1 mt-1">{c.content}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
